@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container fade-in">
+    <h1>Your Discoveries</h1>
+    <p class="subtitle">Patterns and insights Echo has noticed about you.</p>
+
+    <!-- Filters (Optional, keeping simple for now) -->
+    <!-- <div class="quick-emotions">
+        <button class="btn-chip" onclick="filterPatterns('all')">All</button>
+        <button class="btn-chip" onclick="filterPatterns('emotional')">Emotional</button>
+        <button class="btn-chip" onclick="filterPatterns('cognitive')">Cognitive</button>
+        <button class="btn-chip" onclick="filterPatterns('behavioral')">Behavioral</button>
+    </div> -->
+
+    <div id="discoveries-grid" class="topics-grid">
+        <p class="loading-text">Loading insights...</p>
+    </div>
+</div>
+
+<!-- Discovery Modal -->
+<div id="pattern-modal" class="modal hidden">
+    <div class="modal-content reflection-card">
+        <span class="close-modal">&times;</span>
+        <h2 id="modal-title">Pattern Name</h2>
+        <div class="tags" style="margin-bottom: 1rem;">
+            <span id="modal-type" class="badge">Type</span>
+            <span id="modal-confidence" class="badge">Confidence</span>
+        </div>
+
+        <div id="modal-learning-content">
+            <!-- AI Content goes here -->
+        </div>
+
+        <div class="action-buttons" style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: center;">
+            <button class="btn btn-secondary" onclick="updateStatus('acknowledged')">Acknowledge</button>
+            <button class="btn btn-primary" onclick="updateStatus('working_on_it')">Working on it</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', loadDiscoveries);
+
+    async function loadDiscoveries() {
+        const grid = document.getElementById('discoveries-grid');
+        try {
+            const response = await fetch('/api/discoveries');
+            const data = await response.json();
+
+            grid.innerHTML = '';
+
+            if (data.length === 0) {
+                grid.innerHTML = '<p>No patterns detected yet. Keep refined with Echo!</p>';
+                return;
+            }
+
+            data.forEach(item => {
+                const p = item.pattern;
+                const t = item.topic;
+
+                const card = document.createElement('div');
+                card.className = `topic-card pattern-card ${p.pattern_type}`;
+                card.style.borderTop = `4px solid var(--${p.pattern_type}-color, #6c5ce7)`;
+
+                // Map types to colors roughly (will add to CSS)
+                let color = '#6c5ce7';
+                if (p.pattern_type === 'emotional') color = '#e17055';
+                if (p.pattern_type === 'cognitive') color = '#0984e3';
+                if (p.pattern_type === 'behavioral') color = '#00b894';
+
+                card.style.borderTopColor = color;
+
+                card.innerHTML = `
+                <h3 style="color: ${color}">${p.pattern_name}</h3>
+                <p>${t ? t.topic_content.substring(0, 80) + '...' : 'Click to explore.'}</p>
+                <div class="status-indicator">
+                    <span class="status-dot ${p.status}"></span> ${p.status.replace('_', ' ')}
+                </div>
+            `;
+
+                card.onclick = () => openPatternModal(item, color);
+                grid.appendChild(card);
+            });
+        } catch (e) {
+            grid.innerHTML = '<p>Error loading discoveries.</p>';
+            console.error(e);
+        }
+    }
+
+    let currentPatternId = null;
+
+    function openPatternModal(item, color) {
+        const p = item.pattern;
+        const t = item.topic;
+        currentPatternId = p.id;
+
+        document.getElementById('modal-title').innerText = p.pattern_name;
+        document.getElementById('modal-title').style.color = color;
+
+        document.getElementById('modal-type').innerText = p.pattern_type;
+        document.getElementById('modal-confidence').innerText = Math.round(p.confidence_score * 100) + '% Match';
+
+        const contentDiv = document.getElementById('modal-learning-content');
+        if (t) {
+            contentDiv.innerHTML = `
+            <p class="subtitle">${t.topic_title}</p>
+            <p>${t.topic_content}</p>
+            ${t.interactive_hint ? `<div class="reflection-card" style="background:#f9f9f9; padding: 1rem; margin-top: 1rem;"><strong>Micro-Activity:</strong> ${t.interactive_hint}</div>` : ''}
+        `;
+        } else {
+            contentDiv.innerHTML = '<p>No detailed insights generated yet.</p>';
+        }
+
+        document.getElementById('pattern-modal').classList.remove('hidden');
+    }
+
+    async function updateStatus(status) {
+        if (!currentPatternId) return;
+
+        try {
+            await fetch(`/api/patterns/${currentPatternId}/ack`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: status })
+            });
+
+            // rudimentary close and reload
+            document.getElementById('pattern-modal').classList.add('hidden');
+            loadDiscoveries();
+        } catch (e) {
+            console.error(e);
+            alert('Failed to update status');
+        }
+    }
+
+    // Close modal logic
+    document.querySelector('.close-modal').addEventListener('click', () => {
+        document.getElementById('pattern-modal').classList.add('hidden');
+    });
+</script>
+
+<style>
+    /* Local overrides or specifics */
+    .pattern-card {
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .status-dot {
+        height: 10px;
+        width: 10px;
+        background-color: #bdc3c7;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+    }
+
+    .status-dot.new {
+        background-color: #e17055;
+    }
+
+    .status-dot.working_on_it {
+        background-color: #fdcb6e;
+    }
+
+    .status-dot.explored {
+        background-color: #00b894;
+    }
+
+    .badge {
+        background: #dfe6e9;
+        padding: 0.2rem 0.6rem;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        color: #636e72;
+        margin-right: 0.5rem;
+    }
+</style>
+{% endblock %}

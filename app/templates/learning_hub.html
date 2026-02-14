@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="learning-page fade-in">
+    <div class="container">
+        <h1>Learning Hub</h1>
+        <p class="subtitle">Understand the "why" behind your wiring through personalized insights.</p>
+
+        <div id="learning-topics-grid" class="topics-grid">
+            <!-- Topics will be loaded here via JS -->
+            <div class="loading-state">
+                <p>Loading your personalized wisdom...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Topic Content -->
+    <div id="topic-modal" class="modal hidden">
+        <div class="modal-content reflection-card">
+            <span class="close-modal">&times;</span>
+            <div id="modal-body">
+                <!-- Content injected via JS -->
+            </div>
+            <div class="modal-footer" style="margin-top: 2.5rem; text-align: center;">
+                <button class="btn btn-primary" onclick="markAsComplete()">Got it, thanks!</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    let currentTopicId = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadTopics();
+
+        const closeModal = document.querySelector('.close-modal');
+        const modal = document.getElementById('topic-modal');
+
+        if (closeModal) {
+            closeModal.onclick = () => modal.classList.add('hidden');
+        }
+
+        window.onclick = (event) => {
+            if (event.target == modal) {
+                modal.classList.add('hidden');
+            }
+        };
+    });
+
+    async function loadTopics() {
+        const grid = document.getElementById('learning-topics-grid');
+        try {
+            const response = await fetch('/api/learning-topics');
+            const topics = await response.json();
+
+            grid.innerHTML = '';
+
+            if (topics.length === 0) {
+                grid.innerHTML = `
+                    <div class="reflection-card" style="grid-column: 1/-1; text-align: center;">
+                        <p>No personalized topics yet. Keep chatting with Echo to discover patterns!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            topics.forEach(topic => {
+                const card = document.createElement('div');
+                card.className = `topic-card ${topic.completion_status}`;
+                card.innerHTML = `
+                    <div class="topic-header">
+                        <span class="badge ${topic.pattern_type}">${topic.pattern_type}</span>
+                        ${topic.completion_status === 'completed' ? '<span class="status-icon">✓</span>' : ''}
+                    </div>
+                    <h3>${topic.topic_title}</h3>
+                    <p>${topic.topic_content.substring(0, 100)}...</p>
+                    <span class="btn-link">Explore Insight &rarr;</span>
+                `;
+                card.onclick = () => openTopic(topic);
+                grid.appendChild(card);
+            });
+        } catch (error) {
+            console.error('Failed to load topics:', error);
+            grid.innerHTML = '<p>Oops! I had trouble loading your topics. Please try again.</p>';
+        }
+    }
+
+    function openTopic(topic) {
+        currentTopicId = topic.id;
+        const modal = document.getElementById('topic-modal');
+        const modalBody = document.getElementById('modal-body');
+
+        modalBody.innerHTML = `
+            <div class="modal-header">
+                <span class="badge ${topic.pattern_type}">${topic.pattern_type}</span>
+                <h2>${topic.topic_title}</h2>
+            </div>
+            <div class="learning-content">
+                <div class="insight-section">
+                    <p>${topic.topic_content}</p>
+                </div>
+                ${topic.interactive_hint ? `
+                    <div class="interaction-hint">
+                        <div class="hint-icon">💡</div>
+                        <div class="hint-text">
+                            <strong>Echo's Micro-Activity:</strong>
+                            <p>${topic.interactive_hint}</p>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+        modal.classList.remove('hidden');
+
+        // Mark as "in_progress" when opened
+        if (topic.completion_status === 'unread') {
+            updateProgress(topic.id, 'in_progress');
+        }
+    }
+
+    async function markAsComplete() {
+        if (!currentTopicId) return;
+        await updateProgress(currentTopicId, 'completed');
+        document.getElementById('topic-modal').classList.add('hidden');
+        loadTopics(); // Refresh grid
+    }
+
+    async function updateProgress(topicId, status) {
+        try {
+            await fetch(`/api/learning-topics/${topicId}/progress`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: status })
+            });
+        } catch (error) {
+            console.error('Failed to update progress:', error);
+        }
+    }
+</script>
+
+<style>
+    .learning-content {
+        line-height: 1.8;
+        color: var(--text-color);
+        font-size: 1.1rem;
+        text-align: left;
+    }
+
+    .modal-header h2 {
+        margin-top: 0.5rem;
+        font-size: 2rem;
+        color: var(--primary-color);
+    }
+
+    .topic-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .badge {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 800;
+        padding: 0.3rem 0.8rem;
+        border-radius: 50px;
+        background: rgba(108, 92, 231, 0.1);
+        color: var(--primary-color);
+    }
+
+    .badge.emotional {
+        background: rgba(225, 112, 85, 0.1);
+        color: #e17055;
+    }
+
+    .badge.cognitive {
+        background: rgba(9, 132, 227, 0.1);
+        color: #0984e3;
+    }
+
+    .badge.behavioral {
+        background: rgba(0, 184, 148, 0.1);
+        color: #00b894;
+    }
+
+    .interaction-hint {
+        margin-top: 2rem;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, rgba(108, 92, 231, 0.05), rgba(162, 155, 254, 0.05));
+        border-radius: 16px;
+        display: flex;
+        gap: 1rem;
+        border-left: 4px solid var(--primary-color);
+    }
+
+    .hint-icon {
+        font-size: 1.5rem;
+    }
+
+    .hint-text strong {
+        display: block;
+        margin-bottom: 0.3rem;
+        color: var(--text-color);
+    }
+
+    .hint-text p {
+        margin: 0;
+        font-size: 1rem;
+        color: #636e72;
+    }
+
+    .status-icon {
+        color: var(--accent-color);
+        font-weight: 900;
+        font-size: 1.2rem;
+    }
+
+    .topic-card.completed {
+        opacity: 0.8;
+    }
+
+    .loading-state {
+        grid-column: 1/-1;
+        padding: 4rem;
+        color: #a0aec0;
+    }
+</style>
+{% endblock %}

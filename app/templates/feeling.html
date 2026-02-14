@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="feeling-page">
+    <h2>How are you feeling right now?</h2>
+    <p class="instruction">There's no wrong answer. Just name it.</p>
+
+    <div class="quick-emotions">
+        <button type="button" class="btn-chip" onclick="fillFeeling('Anxious')">Anxious</button>
+        <button type="button" class="btn-chip" onclick="fillFeeling('Overwhelmed')">Overwhelmed</button>
+        <button type="button" class="btn-chip" onclick="fillFeeling('Tired')">Tired</button>
+        <button type="button" class="btn-chip" onclick="fillFeeling('Sad')">Sad</button>
+        <button type="button" class="btn-chip" onclick="fillFeeling('Calm')">Calm</button>
+    </div>
+
+    <form action="{{ url_for('main.feeling') }}" method="POST" class="feeling-form">
+        <div class="input-group">
+            <input type="text" name="feeling" placeholder="e.g., Anxious, Excited, Tired..." required
+                autocomplete="off">
+        </div>
+        <button type="submit" class="btn btn-primary">Reflect</button>
+    </form>
+</section>
+{% endblock %}

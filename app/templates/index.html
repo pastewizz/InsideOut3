@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="hero">
+    <h1>Hello, friend.</h1>
+    <p class="subtitle">Take a moment to check in with yourself. Understanding your emotions is the first step to balance.</p>
+    <div class="actions">
+        <a href="{{ url_for('main.feeling') }}" class="btn btn-primary">How are you feeling?</a>
+    </div>
+</section>
+{% endblock %}

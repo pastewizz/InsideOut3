@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="reflection-page">
+    <div id="chat-container">
+        <!-- Messages will be injected here -->
+        {% if initial_feeling %}
+        <div class="message user-message" data-feeling="{{ initial_feeling }}">
+            <p>I'm feeling {{ initial_feeling }}.</p>
+        </div>
+        <div class="message ai-message loading">
+            <p>Echo is listening...</p>
+        </div>
+        {% else %}
+        <div class="message ai-message">
+            <p>Hello. I'm listening. How are you feeling right now?</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="interaction-area">
+        <div class="input-group">
+            <input type="text" id="chat-input" placeholder="Type here..." autocomplete="off">
+            <button id="chat-submit" class="btn btn-primary">Send</button>
+        </div>
+    </div>
+
+    <!-- Notification Container for New Patterns -->
+    <div id="notification-container" class="notification-container hidden">
+        <div class="notification-content">
+            <span class="notification-icon">✨</span>
+            <div class="notification-text">
+                <strong>New Pattern Detected!</strong>
+                <p id="notification-message">Click to explore.</p>
+            </div>
+            <a href="{{ url_for('main.discoveries') }}" class="btn-sm">View</a>
+            <span class="close-notification">&times;</span>
+        </div>
+    </div>
+
+    <!-- Modal for Learning Hub -->
+    <div id="topic-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div id="modal-body">
+                <!-- Content loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
