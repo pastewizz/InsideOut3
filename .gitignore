@@ -1,5 +1,36 @@
+# Database
 *.db
+*.sqlite3
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.toast
+.lucid
+.replit
+.DS_Store
+
+# Environment & Secrets
 .env
+.flaskenv
+*.key
+*.pem
+secrets.json
+
+# IDEs
+.vscode/
+.idea/
+
+# App Specific
 .gemini/
+debug.log
+error.log
+instance/
