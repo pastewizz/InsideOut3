@@ -26,6 +26,7 @@ def init_db(app):
         db.execute('''
             CREATE TABLE IF NOT EXISTS messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT, -- For anonymous session isolation
                 role TEXT NOT NULL, -- 'user' or 'ai'
                 content TEXT NOT NULL,
                 context_type TEXT,  -- e.g., 'feeling_checkup', 'general_chat'
@@ -36,7 +37,7 @@ def init_db(app):
         db.execute('''
             CREATE TABLE IF NOT EXISTS patterns (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER DEFAULT 1, -- Single user mode for now
+                user_id TEXT NOT NULL, 
                 pattern_name TEXT NOT NULL,
                 pattern_type TEXT NOT NULL, -- 'emotional', 'cognitive', 'behavioral'
                 confidence_score REAL,
@@ -51,7 +52,7 @@ def init_db(app):
         db.execute('''
             CREATE TABLE IF NOT EXISTS learning_topics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER DEFAULT 1,
+                user_id TEXT NOT NULL,
                 pattern_id INTEGER,
                 topic_title TEXT NOT NULL,
                 topic_content TEXT NOT NULL,
@@ -74,21 +75,21 @@ def init_db(app):
         ''')
         db.commit()
 
-def save_message(role, content, context_type='general'):
+def save_message(user_id, role, content, context_type='general'):
     """Saves a message to the database."""
     db = get_db()
     db.execute(
-        'INSERT INTO messages (role, content, context_type) VALUES (?, ?, ?)',
-        (role, content, context_type)
+        'INSERT INTO messages (user_id, role, content, context_type) VALUES (?, ?, ?, ?)',
+        (user_id, role, content, context_type)
     )
     db.commit()
 
-def get_recent_history(limit=10):
-    """Retrieves the most recent chat messages."""
+def get_recent_history(user_id, limit=10):
+    """Retrieves the most recent chat messages for a user."""
     db = get_db()
     cursor = db.execute(
-        'SELECT role, content FROM messages ORDER BY id DESC LIMIT ?',
-        (limit,)
+        'SELECT role, content FROM messages WHERE user_id = ? ORDER BY id DESC LIMIT ?',
+        (user_id, limit)
     )
     rows = cursor.fetchall()
     # Reverse to return chronologically (Oldest -> Newest)
@@ -96,7 +97,7 @@ def get_recent_history(limit=10):
 
 # --- Pattern Helper Functions ---
 
-def add_pattern(pattern_name, pattern_type, confidence_score, weight=0.0, user_id=1):
+def add_pattern(pattern_name, pattern_type, confidence_score, weight=0.0, user_id=None):
     """Adds a new pattern or updates an equivalent existing one."""
     db = get_db()
     
@@ -126,7 +127,7 @@ def add_pattern(pattern_name, pattern_type, confidence_score, weight=0.0, user_i
         db.commit()
         return cursor.lastrowid, True # True = new
 
-def get_patterns(filter_type=None, user_id=1):
+def get_patterns(user_id, filter_type=None):
     """Retrieves patterns for a user."""
     db = get_db()
     query = 'SELECT * FROM patterns WHERE user_id = ?'
@@ -141,7 +142,7 @@ def get_patterns(filter_type=None, user_id=1):
     cursor = db.execute(query, params)
     return [dict(row) for row in cursor.fetchall()]
 
-def update_pattern_status(pattern_id, status, user_id=1):
+def update_pattern_status(user_id, pattern_id, status):
     """Updates the status of a pattern."""
     db = get_db()
     db.execute(
@@ -150,7 +151,7 @@ def update_pattern_status(pattern_id, status, user_id=1):
     )
     db.commit()
 
-def save_learning_topic(pattern_id, topic_title, topic_content, interactive_hint, difficulty='beginner', user_id=1):
+def save_learning_topic(user_id, pattern_id, topic_title, topic_content, interactive_hint, difficulty='beginner'):
     """Saves an AI-generated learning topic."""
     db = get_db()
     db.execute(
@@ -160,7 +161,7 @@ def save_learning_topic(pattern_id, topic_title, topic_content, interactive_hint
     )
     db.commit()
 
-def get_learning_topic(pattern_id, user_id=1):
+def get_learning_topic(user_id, pattern_id):
     """Retrieves the learning topic for a pattern."""
     db = get_db()
     cursor = db.execute(
@@ -170,7 +171,7 @@ def get_learning_topic(pattern_id, user_id=1):
     row = cursor.fetchone()
     return dict(row) if row else None
 
-def get_all_learning_topics(user_id=1):
+def get_all_learning_topics(user_id):
     """Retrieves all learning topics for a user."""
     db = get_db()
     cursor = db.execute(
@@ -183,7 +184,7 @@ def get_all_learning_topics(user_id=1):
     )
     return [dict(row) for row in cursor.fetchall()]
 
-def update_topic_progress(topic_id, status, user_id=1):
+def update_topic_progress(user_id, topic_id, status):
     """Updates the completion status of a topic."""
     db = get_db()
     db.execute(
@@ -191,3 +192,4 @@ def update_topic_progress(topic_id, status, user_id=1):
         (status, topic_id, user_id)
     )
     db.commit()
+

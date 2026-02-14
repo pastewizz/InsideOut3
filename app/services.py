@@ -3,16 +3,16 @@ from app.ai_service import GeminiService
 
 class ReflectionService:
     @staticmethod
-    def get_reflection_response(feeling_text):
+    def get_reflection_response(user_id, feeling_text):
         """
         Generates a reflection response using Gemini.
         Orchestrates DB saving and AI generation.
         """
         # 1. Save User Message
-        save_message(role='user', content=feeling_text)
+        save_message(user_id=user_id, role='user', content=feeling_text)
 
         # 2. Get Context (History)
-        history = get_recent_history(limit=8) 
+        history = get_recent_history(user_id=user_id, limit=8) 
 
         # 3. Generate Response (AI) - Returns dict: {reflection, insight, follow_up}
         ai_data = GeminiService.generate_response(feeling_text, history)
@@ -32,10 +32,10 @@ class ReflectionService:
         if insight: combined_text += f"\n\n{insight}"
         if follow_up: combined_text += f"\n\n{follow_up}"
         
-        save_message(role='ai', content=combined_text)
+        save_message(user_id=user_id, role='ai', content=combined_text)
         
         # 5. Pattern Detection (Secondary Check)
-        existing_patterns = get_patterns(user_id=1)
+        existing_patterns = get_patterns(user_id=user_id)
         patterns_summary = [f"{p['pattern_name']} ({p['status']})" for p in existing_patterns]
         
         analysis = GeminiService.analyze_patterns(feeling_text, history, patterns_summary)
@@ -47,13 +47,15 @@ class ReflectionService:
                     pattern_name=p["name"],
                     pattern_type=p["type"],
                     confidence_score=p.get("confidence", 0),
-                    weight=p.get("weight", 0)
+                    weight=p.get("weight", 0),
+                    user_id=user_id
                 )
                 
                 if is_new and p.get("confidence", 0) >= 0.7 and p.get("weight", 0) >= 0.7:
                     topic = GeminiService.generate_learning_topic(p["name"], p["type"])
                     if topic:
                         save_learning_topic(
+                            user_id=user_id,
                             pattern_id=pid,
                             topic_title=topic["title"],
                             topic_content=topic["content"],
@@ -78,12 +80,12 @@ class ReflectionService:
 
 class DiscoveryService:
     @staticmethod
-    def get_user_discoveries(user_id=1):
+    def get_user_discoveries(user_id):
         """Fetches all patterns and their learning topics."""
         patterns = get_patterns(user_id=user_id)
         results = []
         for p in patterns:
-            topic = get_learning_topic(p['id'], user_id=user_id)
+            topic = get_learning_topic(user_id=user_id, pattern_id=p['id'])
             results.append({
                 "pattern": p,
                 "topic": topic
@@ -91,8 +93,8 @@ class DiscoveryService:
         return results
 
     @staticmethod
-    def acknowledge_pattern(pattern_id, status, user_id=1):
-        update_pattern_status(pattern_id, status, user_id)
+    def acknowledge_pattern(user_id, pattern_id, status):
+        update_pattern_status(user_id, pattern_id, status)
         return True
 
 class ContentService:
